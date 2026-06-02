@@ -1,41 +1,28 @@
-# options.py — WhaleWatch Options Overlay
+import numpy as np
 
-def options_overlay(signal):
-    c = signal.conviction
-    r = signal.risk_score
-    v = signal.factor_scores.volatility if hasattr(signal.factor_scores, "volatility") else 50
+def compute_options_overlay(ticker, price, earnings_date, volatility=0.25):
+    # crude but effective regime logic
 
-    # regime logic
-    iv_regime = (
-        "HIGH" if v > 70 else
-        "NORMAL" if v > 40 else
-        "LOW"
-    )
+    iv_rank = min(100, max(0, volatility * 100))
 
-    # direction bias
-    bias = (
-        "CALL BIAS" if c > 70 and r < 60 else
-        "PUT HEDGE" if r > 70 else
-        "NO TRADE"
-    )
+    earnings_risk = earnings_date != "Unknown"
 
-    # structure suggestion
-    if bias == "CALL BIAS":
-        return {
-            "strategy": "CALL SPREAD",
-            "note": "defined risk bullish structure",
-            "iv": iv_regime
-        }
+    expected_move = price * volatility * 0.5
 
-    if bias == "PUT HEDGE":
-        return {
-            "strategy": "PUT SPREAD / HEDGE",
-            "note": "protect downside exposure",
-            "iv": iv_regime
-        }
+    if earnings_risk and iv_rank > 70:
+        strategy = "Avoid / wait (IV crush risk)"
+        score_adj = -10
+    elif iv_rank < 30:
+        strategy = "Long premium (calls/puts or debit spreads)"
+        score_adj = +5
+    else:
+        strategy = "Neutral (defined risk spreads preferred)"
+        score_adj = 0
 
     return {
-        "strategy": "NO OPTIONS TRADE",
-        "note": "edge not sufficient",
-        "iv": iv_regime
+        "iv_rank": iv_rank,
+        "earnings_risk": earnings_risk,
+        "expected_move": expected_move,
+        "strategy": strategy,
+        "conviction_adjustment": score_adj
     }
