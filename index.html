@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WhaleWatch v4</title>
+
+<style>
+body {
+  background:#0a0a0a;
+  color:#e8e8e8;
+  font-family: monospace;
+  margin:0;
+  padding:20px;
+}
+
+input, button {
+  padding:10px;
+  font-size:14px;
+  margin:5px;
+}
+
+.card {
+  border:1px solid #333;
+  padding:12px;
+  margin-top:15px;
+}
+
+.good { color:#00ff88; }
+.warn { color:#ffcc00; }
+.bad  { color:#ff4444; }
+
+.row { margin:4px 0; }
+
+.metric {
+  display:flex;
+  justify-content:space-between;
+  font-size:12px;
+}
+</style>
+</head>
+
+<body>
+
+<h2>WhaleWatch v4</h2>
+
+<input id="ticker" placeholder="Enter ticker (NVDA)" />
+<button onclick="run()">ANALYZE</button>
+
+<div id="out"></div>
+
+<script>
+
+const API = "https://bushwacka.onrender.com";
+
+// safe getter
+const get = (obj, path, fallback = "—") =>
+  path.split(".").reduce((o,k)=>o?.[k], obj) ?? fallback;
+
+function color(v){
+  if(v > 70) return "good";
+  if(v > 45) return "warn";
+  return "bad";
+}
+
+async function run(){
+  const t = document.getElementById("ticker").value.trim().toUpperCase();
+  const out = document.getElementById("out");
+
+  out.innerHTML = "loading...";
+
+  try {
+    const res = await fetch(`${API}/signal/${t}`);
+    const d = await res.json();
+
+    out.innerHTML = `
+      <div class="card">
+
+        <h2>${get(d,"ticker")}</h2>
+        <div class="row">Price: $${(d.price ?? 0).toFixed(2)}</div>
+        <div class="row">Sector: ${get(d,"sector")}</div>
+
+        <div class="row"><b>Conviction:</b> ${d.conviction}</div>
+        <div class="row ${color(d.conviction)}">${get(d,"verdict")}</div>
+        <div class="row">${get(d,"entry_flag")}</div>
+
+        <hr>
+
+        <h4>Factor Scores</h4>
+        <div class="metric"><span>Momentum</span><span>${get(d,"factor_scores.momentum_score")}</span></div>
+        <div class="metric"><span>Trend</span><span>${get(d,"factor_scores.trend_score")}</span></div>
+        <div class="metric"><span>Risk</span><span>${get(d,"factor_scores.risk_score")}</span></div>
+        <div class="metric"><span>RS</span><span>${get(d,"factor_scores.rs_score")}</span></div>
+        <div class="metric"><span>Fundamental</span><span>${get(d,"factor_scores.fundamental_score")}</span></div>
+
+        <hr>
+
+        <h4>Raw</h4>
+        <div class="metric"><span>FWD P/E</span><span>${get(d,"raw.fwd_pe")}</span></div>
+        <div class="metric"><span>Short %</span><span>${get(d,"raw.short_pct")}</span></div>
+        <div class="metric"><span>Analyst</span><span>${get(d,"raw.rec_mean")}</span></div>
+
+      </div>
+    `;
+
+  } catch (e) {
+    out.innerHTML = "<div class='bad'>FAILED TO LOAD SIGNAL</div>";
+  }
+}
+
+</script>
+
+</body>
+</html>
